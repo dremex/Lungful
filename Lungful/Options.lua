@@ -85,7 +85,8 @@ local function BuildOptions()
 		optionsCategory,
 		modeSetting,
 		ModeOptions,
-		("How Lungful picks the point where the bar turns red. It fades in orange %d%% of the bar before that and starts flashing %d%% after."):format(
+		("How Lungful picks the point where the bar turns red. A faint yellow starts %d%% of the bar before that and orange %d%% before, and flashing starts %d%% after."):format(
+			stages.yellowLead,
 			stages.orangeLead,
 			stages.flashLag
 		)

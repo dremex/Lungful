@@ -96,6 +96,24 @@ Methods.Region = {
 	SetAlpha = function(self, alpha)
 		self.alpha = alpha
 	end,
+	GetAlpha = function(self)
+		return self.alpha
+	end,
+	GetPoint = function(self, index)
+		return unpack(self.points[index or 1] or {})
+	end,
+	GetNumPoints = function(self)
+		return #self.points
+	end,
+	SetScale = function(self, scale)
+		self.scale = scale
+	end,
+	GetScale = function(self)
+		return self.scale or 1
+	end,
+	GetName = function(self)
+		return self.name
+	end,
 }
 
 Methods.Texture = {
@@ -118,6 +136,9 @@ Methods.Texture = {
 	end,
 	SetVertexColor = function(self, red, green, blue)
 		self.color = { red, green, blue }
+	end,
+	GetVertexColor = function(self)
+		return unpack(self.color or { 1, 1, 1 })
 	end,
 }
 
@@ -232,10 +253,14 @@ end
 
 UIParent = NewRegion("Frame")
 
+UIParent.name = "UIParent"
+
 function CreateFrame(kind, name, parent)
 	local frame = NewRegion(kind, parent or UIParent)
 
 	if name then
+		frame.name = name
+
 		_G[name] = frame
 	end
 
@@ -406,7 +431,22 @@ for index = 1, 3 do
 	}
 end
 
+-- Blizzard's layout shrinks the container to 0x0 while no timer is up, which
+-- leaves it without a usable position: anything anchored to it isn't drawn.
+-- It sits where Edit Mode puts it, TOP of UIParent at -100 by default.
 MirrorTimerContainer = Watched({
+	GetName = function()
+		return "MirrorTimerContainer"
+	end,
+	GetNumPoints = function()
+		return 1
+	end,
+	GetPoint = function()
+		return "TOP", UIParent, "TOP", 0, -100
+	end,
+	GetScale = function()
+		return 1.2
+	end,
 	GetActiveTimer = function(_, timerName)
 		local slot = container.activeTimers[timerName]
 

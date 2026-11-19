@@ -42,9 +42,14 @@ local function Shown(texture)
 	return texture ~= nil and texture.shown
 end
 
--- green over red: 0.08 for red and 0.45 for orange, whatever the flash brightness
+-- green over red: 0.08 for red, 0.45 for orange and 0.82 for yellow, whatever the flash brightness
 local function Hue(texture)
 	return texture.color[2] / texture.color[1]
+end
+
+-- blue over red: about 0.57 for the pale first yellow, 0 for full yellow and orange
+local function Paleness(texture)
+	return texture.color[3] / texture.color[1]
 end
 
 local function IsRed(texture)
@@ -144,7 +149,7 @@ local toc = assert(io.open("Lungful/Lungful.toc")):read("*a")
 check(toc:find("## Version: @project-version@", 1, true), "the version is left for the release to stamp")
 check(toc:find("## Interface: 16001", 1, true), "it targets the WoW: Forever client")
 check(toc:find("## SavedVariables: LungfulDB", 1, true), "settings are saved")
-check(not toc:lower():find("yellow"), "the notes only promise colors the bar shows")
+check(toc:find("yellow, orange, then red", 1, true), "the notes name the colors in order")
 
 --------------------------------------------------------------------------------
 section("settings")
@@ -203,72 +208,100 @@ check(
 	ns.TurnBackMs({ startMs = 3000, maxMs = 60000 }, trip) == 3000,
 	"trip: diving with less than the margin is red at once"
 )
-check(ns.Look(31000, 18000, barMs, true) == nil, "above 50% the stock bar shows untouched")
+check(ns.Look(42000, 18000, barMs, true) == nil, "from 70% up (30% used) the stock bar shows untouched")
 
-local red, green, blue, alpha, pulses, wholeBar = ns.Look(29000, 18000, barMs, true)
+local red, green, blue, pulses, wholeBar = ns.Look(41700, 18000, barMs, true)
 
-check(alpha > 0.3 and alpha < 0.4 and pulses == 0, "just under 50% the color fades in, steady")
-check(near(green / red, 0.45), "it fades in orange")
+check(green / red > 0.9 and blue / red > 0.5 and pulses == 0, "just under 70% a faint, pale yellow shows, steady")
 
-red, green, blue, alpha, pulses = ns.Look(25000, 18000, barMs, true)
+red, green, blue = ns.Look(36000, 18000, barMs, true)
 
-check(alpha == 1 and near(green / red, 0.45), "by 45% it is solid orange")
+check(blue > 0.2 and blue < 0.4, "at 60% it is halfway from pale to full yellow")
 
-red, green, blue, alpha, pulses = ns.Look(21000, 18000, barMs, true)
+red, green, blue = ns.Look(30000, 18000, barMs, true)
 
-check(green / red > 0.1 and green / red < 0.44, "from 40% it fades toward red")
+check(near(green, 0.82) and near(blue, 0), "at 50% it is full yellow")
 
-red, green, blue, alpha, pulses = ns.Look(18000, 18000, barMs, true)
+red, green, blue = ns.Look(29700, 18000, barMs, true)
 
-check(near(green / red, 0.08) and alpha == 1 and pulses == 0, "at 30% it is red, not flashing yet")
+check(near(green, 0.82 + (0.45 - 0.82) * 0.43), "just under 50% it steps 40% of the way to orange, then on evenly")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(15000, 18000, barMs, true)
+red, green, blue = ns.Look(24000, 18000, barMs, true)
+
+check(near(green, 0.45) and near(blue, 0), "at 40% it is full orange")
+
+red, green, blue = ns.Look(23700, 18000, barMs, true)
+
+check(near(green, 0.45 + (0.08 - 0.45) * 0.43), "just under 40% it steps 40% of the way to red, then on evenly")
+
+red, green, blue = ns.Look(21000, 18000, barMs, true)
+
+check(green > 0.1 and green < 0.28, "at 35% it is between orange and red")
+
+local warming = true
+local previousGreen = math.huge
+
+for leftMs = 41940, 18000, -60 do
+	local _, stepGreen = ns.Look(leftMs, 18000, barMs, true)
+
+	warming = warming and stepGreen <= previousGreen + 1e-9
+
+	previousGreen = stepGreen
+end
+
+check(warming, "from the first yellow to red the bar only ever gets warmer")
+
+red, green, blue, pulses = ns.Look(18000, 18000, barMs, true)
+
+check(near(green / red, 0.08) and pulses == 0, "at 30% it is red, not flashing yet")
+
+red, green, blue, pulses, wholeBar = ns.Look(15000, 18000, barMs, true)
 
 check(near(green / red, 0.08) and near(pulses, 1) and not wholeBar, "at 25% the fill starts flashing once a second")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(6500, 18000, barMs, true)
+red, green, blue, pulses, wholeBar = ns.Look(6500, 18000, barMs, true)
 
 check(pulses > 2.5 and pulses < 3 and not wholeBar, "just above 10% the fill flashes nearly three times a second")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(6000, 18000, barMs, true)
+red, green, blue, pulses, wholeBar = ns.Look(6000, 18000, barMs, true)
 
 check(near(green / red, 0.08) and pulses == 4 and wholeBar, "at 10% the whole bar flashes fast")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(0, 18000, barMs, true)
+red, green, blue, pulses, wholeBar = ns.Look(0, 18000, barMs, true)
 
 check(pulses == 4 and wholeBar, "and keeps flashing fast while drowning")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(10000, 18000, barMs, false)
+red, green, blue, pulses, wholeBar = ns.Look(10000, 18000, barMs, false)
 
 check(near(green / red, 0.08) and pulses == 0 and not wholeBar, "with flashing off it is steady red")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(3000, 18000, barMs, false)
+red, green, blue, pulses, wholeBar = ns.Look(3000, 18000, barMs, false)
 
 check(pulses == 0 and wholeBar, "and the whole bar still turns red under 10%, steady")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(1000, 3000, barMs, true)
+red, green, blue, pulses, wholeBar = ns.Look(1000, 3000, barMs, true)
 
 check(near(green / red, 0.08) and pulses == 0 and not wholeBar, "red at 5%: no flashing before drowning")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(0, 3000, barMs, true)
+red, green, blue, pulses, wholeBar = ns.Look(0, 3000, barMs, true)
 
 check(pulses == 4 and wholeBar, "red at 5%: the whole bar flashes once drowning")
 
-red, green, blue, alpha, pulses, wholeBar = ns.Look(0, 1000, barMs, true)
+red, green, blue, pulses, wholeBar = ns.Look(0, 1000, barMs, true)
 
 check(pulses == 4 and wholeBar, "trip, diving almost out of breath: still flashes once drowning")
 
-red, green, blue, alpha, pulses = ns.Look(32500, 32500, barMs, true)
+red, green, blue, pulses = ns.Look(32500, 32500, barMs, true)
 
 check(near(green / red, 0.08) and pulses == 0, "trip: red at the turn-back point")
 
-red, green, blue, alpha, pulses = ns.Look(29500, 32500, barMs, true)
+red, green, blue, pulses = ns.Look(29500, 32500, barMs, true)
 
 check(near(pulses, 1), "trip: flashing starts 5% of the bar later")
 check(ns.PulseBrightness(0) == 1 and near(ns.PulseBrightness(0.5), 0.35), "a flash runs from full to dim")
 check(
 	ns.Describe(percent)
-		== "Orange from 50%, red at 30%, flashing from 25%, the whole bar flashing from 10% of breath left.",
+		== "Faint yellow from 70%, full yellow by 50%, orange by 40%, red by 30%, flashing from 25%, the whole bar flashing from 10% of breath left.",
 	"percent mode states its thresholds"
 )
 check(
@@ -287,32 +320,45 @@ mock.Advance(5)
 
 check(not Shown(Overlay(1)), "5s in, the bar is stock")
 
-mock.Advance(23.5)
+mock.Advance(12)
 
-check(not Shown(Overlay(1)), "at 52% left, still stock")
+check(not Shown(Overlay(1)), "at 72% left, still stock")
 
-mock.Advance(2.5)
+mock.Advance(1.3)
 
 local overlay = Overlay(1)
 
-check(Shown(overlay) and overlay.alpha > 0 and overlay.alpha < 1, "just under 50%, the color is fading in")
-check(near(Hue(overlay), 0.45, 0.01), "and it is orange")
+check(Shown(overlay) and Paleness(overlay) > 0.5, "just past 70% left (30% used), a faint yellow shows")
+check(Hue(overlay) > 0.9, "a pale yellow")
 check(overlay.layer == "OVERLAY" and overlay.desaturated, "the overlay sits over the fill, desaturated for tinting")
 check(overlay.allPointsTarget == mock.RawBlizzardBar(1).fill, "it covers just the filled part of the bar")
 
-mock.Advance(4)
+mock.Advance(5.7)
 
-check(Shown(overlay) and overlay.alpha == 1 and near(Hue(overlay), 0.45, 0.01), "at 25s left, solid orange")
+check(Paleness(overlay) > 0.2 and Paleness(overlay) < 0.4, "at 36s left (60%) it is halfway to full yellow")
+
+mock.Advance(6)
+
+check(near(Hue(overlay), 0.82, 0.01) and Paleness(overlay) < 0.01, "at 30s left (50%) it is full yellow")
 
 local steadyBrightness = Brightness(overlay)
 
 mock.Advance(0.5)
 
 check(Brightness(overlay) == steadyBrightness, "and not flashing")
+check(Hue(overlay) > 0.6 and Hue(overlay) < 0.7, "just under 50% it steps toward orange")
 
-mock.Advance(3.5)
+mock.Advance(5.5)
 
-check(Hue(overlay) > 0.1 and Hue(overlay) < 0.44, "at 21s left (35%) it is fading into red")
+check(near(Hue(overlay), 0.45, 0.02), "at 24s left (40%) it is full orange")
+
+mock.Advance(0.5)
+
+check(Hue(overlay) > 0.25 and Hue(overlay) < 0.32, "just under 40% it steps toward red")
+
+mock.Advance(2.5)
+
+check(Hue(overlay) > 0.1 and Hue(overlay) < 0.25, "at 21s left (35%) it is between orange and red")
 
 mock.Advance(4)
 
@@ -393,6 +439,10 @@ check(not AddonUpdatersRunning(), "and nothing runs every frame once no timer is
 section("Blizzard's frames are only read")
 --------------------------------------------------------------------------------
 local allowedCalls = {
+	GetName = true,
+	GetNumPoints = true,
+	GetPoint = true,
+	GetScale = true,
 	GetActiveTimer = true,
 	GetMinMaxValues = true,
 	GetValue = true,
@@ -591,6 +641,18 @@ check(previewBar and previewBar:IsVisible(), "a preview bar appears")
 check(previewBar.fill.atlas == "ui-castingbar-filling-applyingcrafting", "drawn with the stock breath fill")
 check(previewBar.parent.strata == "DIALOG", "above the options window, so it shows from there too")
 
+local previewAnchor = previewBar.parent.points[1]
+
+check(previewAnchor[2] ~= MirrorTimerContainer, "it isn't anchored to the timer container, which has no size on land")
+check(
+	previewAnchor[1] == "TOP"
+		and previewAnchor[2] == UIParent
+		and previewAnchor[3] == "TOP"
+		and previewAnchor[5] == -100,
+	"it sits where the timer bars do, by copying their anchor"
+)
+check(previewBar.parent.scale == 1.2, "at the size Edit Mode gives the timer bars")
+
 mock.Advance(5)
 
 check(near(previewBar.value, 45, 0.01), "it drains at 3x speed")
@@ -609,6 +671,18 @@ mock.Advance(3)
 
 check(not previewBar:IsVisible(), "then goes away by itself")
 check(not AddonUpdatersRunning(), "and stops updating")
+
+Slash("test")
+
+for _, frame in ipairs(mock.frames) do
+	if frame.scripts.OnUpdate and frame:IsVisible() then
+		frame.scripts.OnUpdate(frame, 600)
+	end
+end
+
+check(previewBar:IsVisible(), "a huge first frame time doesn't end the preview early")
+
+mock.Advance(24)
 
 mock.StartTimer("BREATH", 60000, 60000, -1)
 
@@ -689,7 +763,7 @@ mock.StartTimer("BREATH", 60000, 60000, -1)
 
 mock.Advance(35)
 
-check(Shown(Overlay(1)) and not IsRed(Overlay(1)), "at 25s left on 30%, the bar is orange")
+check(Shown(Overlay(1)) and not IsRed(Overlay(1)), "at 25s left with red at 30%, the bar isn't red yet")
 
 settingNamed.LUNGFUL_TURNBACKPERCENT:SetValue(45)
 
@@ -716,9 +790,26 @@ check(panel.openedCategoryID == category:GetID(), "/lungful alone opens the opti
 
 Slash("help")
 
-check(Printed("red at 30%%"), "/lungful help shows the current setting")
-check(Printed("orange from 20 above, flashing from 5 below"), "and how the stages relate")
+check(Printed("red by 30%%"), "/lungful help shows the current setting")
+check(
+	Printed("faint yellow from 40 above it, orange from 20 above and flashing from 5 below"),
+	"and how the stages relate"
+)
 check(Printed("/lungful fatigue on|off"), "and the commands")
+
+mock.StartTimer("BREATH", 60000, 60000, -1)
+
+mock.Advance(30)
+
+Slash("debug")
+
+check(Printed("debug: mode percent"), "/lungful debug shows the settings")
+check(Printed("game timer 1: BREATH"), "the game's timers")
+check(Printed("dive BREATH: started 60000 of 60000 ms"), "the dive it's tracking")
+check(Printed("fill overlay shown, alpha 1.00, color 1.00 0.82 0.00"), "what the overlay is drawing")
+check(Printed("preview: hidden"), "and the preview")
+
+mock.StopTimer("BREATH")
 
 Slash("bogus")
 

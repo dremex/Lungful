@@ -1,11 +1,14 @@
 local ADDON, ns = ...
 
 local SETTINGS_VERSION = 2
+local PALE_YELLOW = { 1, 0.93, 0.58 }
+local YELLOW = { 1, 0.82, 0 }
 local ORANGE = { 1, 0.45, 0 }
 local RED = { 1, 0.08, 0.05 }
+local YELLOW_LEAD_PERCENT = 40
 local ORANGE_LEAD_PERCENT = 20
-local ORANGE_FADE_IN_PERCENT = 5
-local RED_BLEND_PERCENT = 10
+local RED_LEAD_PERCENT = 10
+local SHIFT_STEP = 0.4
 local FLASH_LAG_PERCENT = 5
 local WHOLE_BAR_PERCENT = 10
 local SLOWEST_PULSES_PER_SECOND, FASTEST_PULSES_PER_SECOND = 1, 3
@@ -22,6 +25,7 @@ ns.LIMITS = {
 }
 
 ns.STAGE_PERCENTS = {
+	yellowLead = YELLOW_LEAD_PERCENT,
 	orangeLead = ORANGE_LEAD_PERCENT,
 	flashLag = FLASH_LAG_PERCENT,
 	wholeBar = WHOLE_BAR_PERCENT,
@@ -41,6 +45,32 @@ end
 
 local function Lerp(from, to, progress)
 	return from + (to - from) * progress
+end
+
+local function Blend(fromColor, toColor, progress)
+	return Lerp(fromColor[1], toColor[1], progress),
+		Lerp(fromColor[2], toColor[2], progress),
+		Lerp(fromColor[3], toColor[3], progress)
+end
+
+local function Shifted(progress)
+	return SHIFT_STEP + (1 - SHIFT_STEP) * Clamp(progress, 0, 1)
+end
+
+local function ColorAbove(turnBackLeadPercent)
+	if turnBackLeadPercent >= ORANGE_LEAD_PERCENT then
+		local deepening = (YELLOW_LEAD_PERCENT - turnBackLeadPercent) / (YELLOW_LEAD_PERCENT - ORANGE_LEAD_PERCENT)
+
+		return Blend(PALE_YELLOW, YELLOW, Clamp(deepening, 0, 1))
+	end
+
+	if turnBackLeadPercent >= RED_LEAD_PERCENT then
+		local towardOrange = (ORANGE_LEAD_PERCENT - turnBackLeadPercent) / (ORANGE_LEAD_PERCENT - RED_LEAD_PERCENT)
+
+		return Blend(YELLOW, ORANGE, Shifted(towardOrange))
+	end
+
+	return Blend(ORANGE, RED, Shifted((RED_LEAD_PERCENT - turnBackLeadPercent) / RED_LEAD_PERCENT))
 end
 
 function ns.ClampSetting(key, value)
@@ -121,32 +151,25 @@ function ns.Look(leftMs, turnBackMs, maxMs, flash)
 	local wholeBarFromMs = math.max(0, math.min(WHOLE_BAR_PERCENT * percentMs, flashFromMs))
 
 	if leftMs <= wholeBarFromMs then
-		return RED[1], RED[2], RED[3], 1, flash and WHOLE_BAR_PULSES_PER_SECOND or 0, true
+		return RED[1], RED[2], RED[3], flash and WHOLE_BAR_PULSES_PER_SECOND or 0, true
 	end
 
 	if leftMs <= flashFromMs then
 		local closeness = (flashFromMs - leftMs) / (flashFromMs - wholeBarFromMs)
 		local pulsesPerSecond = Lerp(SLOWEST_PULSES_PER_SECOND, FASTEST_PULSES_PER_SECOND, closeness)
 
-		return RED[1], RED[2], RED[3], 1, flash and pulsesPerSecond or 0, false
+		return RED[1], RED[2], RED[3], flash and pulsesPerSecond or 0, false
 	end
 
-	local orangeFromMs = turnBackMs + ORANGE_LEAD_PERCENT * percentMs
+	local turnBackLeadPercent = (leftMs - turnBackMs) / percentMs
 
-	if leftMs >= orangeFromMs then
+	if turnBackLeadPercent >= YELLOW_LEAD_PERCENT then
 		return nil
 	end
 
-	local alpha = Clamp((orangeFromMs - leftMs) / (ORANGE_FADE_IN_PERCENT * percentMs), 0, 1)
-	local redBlendFromMs = turnBackMs + RED_BLEND_PERCENT * percentMs
-	local towardRed = Clamp((redBlendFromMs - leftMs) / (RED_BLEND_PERCENT * percentMs), 0, 1)
+	local red, green, blue = ColorAbove(turnBackLeadPercent)
 
-	return Lerp(ORANGE[1], RED[1], towardRed),
-		Lerp(ORANGE[2], RED[2], towardRed),
-		Lerp(ORANGE[3], RED[3], towardRed),
-		alpha,
-		0,
-		false
+	return red, green, blue, 0, false
 end
 
 function ns.PulseWave(pulsePhase)
@@ -162,8 +185,10 @@ function ns.Describe(settings)
 		local redPercent = settings.turnBackPercent
 		local flashPercent = math.max(0, redPercent - FLASH_LAG_PERCENT)
 
-		return ("Orange from %d%%, red at %d%%, flashing from %d%%, the whole bar flashing from %d%% of breath left."):format(
+		return ("Faint yellow from %d%%, full yellow by %d%%, orange by %d%%, red by %d%%, flashing from %d%%, the whole bar flashing from %d%% of breath left."):format(
+			math.min(100, redPercent + YELLOW_LEAD_PERCENT),
 			math.min(100, redPercent + ORANGE_LEAD_PERCENT),
+			math.min(100, redPercent + RED_LEAD_PERCENT),
 			redPercent,
 			flashPercent,
 			math.min(WHOLE_BAR_PERCENT, flashPercent)
@@ -172,7 +197,7 @@ function ns.Describe(settings)
 
 	local fullDive = { startMs = FULL_BAR_EXAMPLE_MS, maxMs = FULL_BAR_EXAMPLE_MS }
 
-	return ("Red when swimming back the way you came would reach air with %ds to spare (%ds left on a full %ds bar). Orange before that, flashing just after, the whole bar flashing from %d%%."):format(
+	return ("Red when swimming back the way you came would reach air with %ds to spare (%ds left on a full %ds bar). Faint yellow, then orange before that, flashing just after, the whole bar flashing from %d%%."):format(
 		settings.marginSeconds,
 		math.floor(ns.TurnBackMs(fullDive, settings) / 1000),
 		FULL_BAR_EXAMPLE_MS / 1000,

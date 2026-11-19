@@ -28,8 +28,9 @@ local function Help()
 	local lines = {
 		("%s - open the options"):format(Highlight("/lungful")),
 		("%s - watch a sped-up dive"):format(Highlight("/lungful test")),
-		("%s - red at that %% of breath left, orange from %d above, flashing from %d below (now %s)"):format(
+		("%s - red at that %% of breath left, faint yellow from %d above it, orange from %d above and flashing from %d below (now %s)"):format(
 			Highlight("/lungful percent <number>"),
+			stages.yellowLead,
 			stages.orangeLead,
 			stages.flashLag,
 			Highlight(db.turnBackPercent .. "%")
@@ -43,6 +44,7 @@ local function Help()
 			Highlight("/lungful fatigue on|off"),
 			OnOffText(db.fatigue)
 		),
+		("%s - what Lungful sees, for bug reports"):format(Highlight("/lungful debug")),
 	}
 
 	ns.Print(ns.Describe(db))
@@ -100,6 +102,26 @@ local function Toggle(key, label)
 	end
 end
 
+local function Debug()
+	local settings = ns.db
+
+	ns.Print(
+		("debug: mode %s, red at %d%%, %ds spare, flash %s, fatigue %s"):format(
+			settings.mode,
+			settings.turnBackPercent,
+			settings.marginSeconds,
+			tostring(settings.flash),
+			tostring(settings.fatigue)
+		)
+	)
+
+	for _, line in ipairs(ns.DescribeState()) do
+		print("  " .. line)
+	end
+
+	print("  " .. ns.DescribePreview())
+end
+
 local function OpenOptions()
 	if not ns.OpenOptions() then
 		Help()
@@ -109,6 +131,7 @@ end
 local commands = {
 	options = OpenOptions,
 	help = Help,
+	debug = Debug,
 	test = ns.StartPreview,
 	preview = ns.StartPreview,
 	percent = SetPercent,

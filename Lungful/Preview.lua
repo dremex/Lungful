@@ -6,7 +6,7 @@ local PREVIEW_SPEED = 3
 local PREVIEW_DROWNING_SECONDS = 3
 local PREVIEW_DIVE = { startMs = PREVIEW_BREATH_MS, maxMs = PREVIEW_BREATH_MS }
 local preview
-local previewElapsedSeconds = 0
+local previewStartedAt = 0
 
 local function AtlasAround(frame, layer, subLevel, atlas, target, outset)
 	local texture = frame:CreateTexture(nil, layer, nil, subLevel)
@@ -60,6 +60,18 @@ local function BuildPreview()
 	return frame
 end
 
+local function TimerBarsAnchor()
+	local container = MirrorTimerContainer
+
+	if container and container:GetNumPoints() > 0 then
+		local point, relativeTo, relativePoint, x, y = container:GetPoint(1)
+
+		return point, relativeTo or UIParent, relativePoint, x, y, container:GetScale()
+	end
+
+	return "TOP", UIParent, "TOP", 0, -100, 1
+end
+
 function ns.StartPreview()
 	if ns.IsDiving() then
 		ns.Print("you're under water now, so watch the real bar. Try the preview on dry land.")
@@ -69,11 +81,15 @@ function ns.StartPreview()
 
 	preview = preview or BuildPreview()
 
-	previewElapsedSeconds = 0
+	local point, relativeTo, relativePoint, x, y, scale = TimerBarsAnchor()
+
+	previewStartedAt = GetTime()
 
 	preview:ClearAllPoints()
 
-	preview:SetPoint("TOP", MirrorTimerContainer or UIParent, "TOP", 0, MirrorTimerContainer and 0 or -100)
+	preview:SetPoint(point, relativeTo, relativePoint, x, y)
+
+	preview:SetScale(scale)
 
 	preview:Show()
 
@@ -99,10 +115,9 @@ function ns.StepPreview(elapsedSeconds, diving)
 		return false
 	end
 
-	previewElapsedSeconds = previewElapsedSeconds + elapsedSeconds
-
-	local leftMs = math.max(0, PREVIEW_BREATH_MS - previewElapsedSeconds * PREVIEW_SPEED * 1000)
-	local drowningSeconds = previewElapsedSeconds - PREVIEW_BREATH_MS / 1000 / PREVIEW_SPEED
+	local previewSeconds = GetTime() - previewStartedAt
+	local leftMs = math.max(0, PREVIEW_BREATH_MS - previewSeconds * PREVIEW_SPEED * 1000)
+	local drowningSeconds = previewSeconds - PREVIEW_BREATH_MS / 1000 / PREVIEW_SPEED
 
 	if drowningSeconds >= PREVIEW_DROWNING_SECONDS then
 		preview:Hide()
@@ -119,4 +134,22 @@ function ns.StepPreview(elapsedSeconds, diving)
 	ns.Paint(preview.bar, PREVIEW_DIVE, leftMs, elapsedSeconds)
 
 	return true
+end
+
+function ns.DescribePreview()
+	if not preview then
+		return "preview: not built yet"
+	end
+
+	local point, relativeTo, relativePoint, x, y = preview:GetPoint(1)
+
+	return ("preview: %s, %.1fs in, %s of %s at %s %s, %s"):format(
+		preview:IsShown() and "shown" or "hidden",
+		GetTime() - previewStartedAt,
+		tostring(point),
+		relativeTo and (relativeTo:GetName() or "a frame") or "nothing",
+		tostring(relativePoint),
+		tostring(x),
+		tostring(y)
+	)
 end

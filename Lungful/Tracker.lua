@@ -110,7 +110,7 @@ end
 function ns.Paint(statusBar, dive, leftMs, elapsedSeconds)
 	local overlay = OverlayFor(statusBar)
 	local settings = ns.db
-	local red, green, blue, alpha, pulsesPerSecond, flashesWholeBar =
+	local red, green, blue, pulsesPerSecond, flashesWholeBar =
 		ns.Look(leftMs, ns.TurnBackMs(dive, settings), dive.maxMs, settings.flash and not dive.paused)
 
 	paintedThisFrame[statusBar] = true
@@ -128,8 +128,6 @@ function ns.Paint(statusBar, dive, leftMs, elapsedSeconds)
 	PlaceFill(overlay, statusBar)
 
 	overlay.fill:SetVertexColor(red * fillBrightness, green * fillBrightness, blue * fillBrightness)
-
-	overlay.fill:SetAlpha(alpha)
 
 	overlay.fill:Show()
 
@@ -152,6 +150,66 @@ function ns.IsDiving()
 	end
 
 	return false
+end
+
+local function DescribeTexture(label, texture)
+	if not texture:IsShown() then
+		return label .. " hidden"
+	end
+
+	local red, green, blue = texture:GetVertexColor()
+
+	return ("%s shown, alpha %.2f, color %.2f %.2f %.2f"):format(label, texture:GetAlpha(), red, green, blue)
+end
+
+function ns.DescribeState()
+	local lines = {}
+
+	for index = 1, MIRROR_TIMER_COUNT do
+		local timerName, startMs, maxMs, scale, paused = GetMirrorTimerInfo(index)
+
+		table.insert(
+			lines,
+			("game timer %d: %s, started %s of %s ms, scale %s, paused %s"):format(
+				index,
+				tostring(timerName),
+				tostring(startMs),
+				tostring(maxMs),
+				tostring(scale),
+				tostring(paused)
+			)
+		)
+	end
+
+	for timerName, dive in pairs(dives) do
+		local statusBar = BlizzardBar(timerName)
+		local overlay = statusBar and overlays[statusBar]
+
+		table.insert(
+			lines,
+			("dive %s: started %d of %d ms, %s ms left, %s, Blizzard bar %s"):format(
+				timerName,
+				dive.startMs,
+				dive.maxMs,
+				tostring(GetMirrorTimerProgress(timerName)),
+				ns.IsColored(timerName) and "colored" or "not colored",
+				statusBar and "found" or "not found"
+			)
+		)
+
+		if overlay then
+			table.insert(lines, DescribeTexture("  fill overlay", overlay.fill))
+			table.insert(lines, DescribeTexture("  whole-bar overlay", overlay.wholeBar))
+		end
+	end
+
+	if next(dives) == nil then
+		table.insert(lines, "no dive tracked")
+	end
+
+	table.insert(lines, "updating every frame: " .. (driver:IsShown() and "yes" or "no"))
+
+	return lines
 end
 
 function ns.SettingsChanged()

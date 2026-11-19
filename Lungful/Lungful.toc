@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: Lungful
+## Notes: The breath bar turns orange, then red, then flashes when it's time to swim back up.
+## Author: dremex
+## Version: @project-version@
+## Category: HUD
+## X-License: MIT
+## IconTexture: Interface\Icons\Spell_Shadow_DemonBreath
+## SavedVariables: LungfulDB
+## AddonCompartmentFunc: Lungful_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Lungful_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Lungful_OnAddonCompartmentLeave
+
+Core.lua
+Tracker.lua
+Preview.lua
+Options.lua
+Commands.lua

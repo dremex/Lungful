@@ -5,12 +5,16 @@
 <h1 align="center">Lungful</h1>
 
 <p align="center">
-  A World of Warcraft: Forever addon that turns the breath bar orange, then red, then flashing, so you swim back up before you drown.
+  A World of Warcraft: Forever addon that turns the breath bar yellow, orange, then red and flashing, so you swim back up before you drown.
 </p>
 
 <p align="center">
   <a href="https://github.com/dremex/Lungful/actions/workflows/test.yml"><img src="https://github.com/dremex/Lungful/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <img src="docs/demo.gif" alt="A full dive in game: the breath bar drains in Blizzard's blue, turns yellow, then orange, then red, flashes faster near empty, and finally flashes across the whole bar while drowning" width="520">
 </p>
 
 ## Why
@@ -21,9 +25,10 @@ The breath bar looks the same at 59 seconds left as it does at 5. It's easy to g
 
 | Breath left | The bar |
 | --- | --- |
-| Above 50% | Blizzard's usual blue |
-| 50% to 40% | Fades in orange |
-| 40% to 30% | Fades from orange into red |
+| Above 70% | Blizzard's usual blue |
+| 70% to 50% | A faint yellow that deepens to full yellow |
+| 50% to 40% | Steps toward orange, then shifts to full orange |
+| 40% to 30% | Steps toward red, then shifts to full red |
 | 30% to 25% | Solid red |
 | 25% to 10% | The red fill flashes, faster as breath runs out |
 | Under 10%, and drowning | The whole bar flashes fast, with what's left still showing between flashes |
@@ -42,7 +47,7 @@ Lungful is for WoW: Forever only. It's built against that client's breath bar, w
 
 Open **Options > AddOns > Lungful**, type `/lungful`, or click Lungful in the addon menu by the minimap. Right-click it there to preview a dive.
 
-- **Turn red:** at a set share of breath (30% unless you change it), or from how long you've been under water. The second option turns red when swimming back the way you came would reach air with a few seconds to spare: on a full 60 second bar with 5 spare seconds, that's at 32 seconds left. Either way, orange starts 20% of the bar before the red point and flashing 5% after it.
+- **Turn red:** at a set share of breath (30% unless you change it), or from how long you've been under water. The second option turns red when swimming back the way you came would reach air with a few seconds to spare: on a full 60 second bar with 5 spare seconds, that's at 32 seconds left. Either way, a faint yellow starts 40% of the bar before the red point and orange 20% before it, and flashing starts 5% after it.
 - **Flash near the end:** turn off for a steady red bar.
 - **Color the fatigue bar:** turn off to leave the fatigue bar alone.
 - **Preview:** plays a sped-up dive on a sample bar so you can see every stage without drowning.
@@ -57,6 +62,7 @@ Open **Options > AddOns > Lungful**, type `/lungful`, or click Lungful in the ad
 /lungful trip [seconds]    red from how long you've been under, with that many spare seconds (0-30)
 /lungful flash on|off      flash near the end
 /lungful fatigue on|off    color the fatigue bar too
+/lungful debug             what Lungful sees, for bug reports
 ```
 
 ## Questions
